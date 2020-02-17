@@ -2,6 +2,7 @@
 using System;
 using System.Linq;
 using System.Windows.Forms;
+using Microsoft.Win32.TaskScheduler;
 
 namespace BOSU
 {
@@ -37,16 +38,6 @@ namespace BOSU
             string content = timeStamp + ": " + message;
             richTextBox.AppendText(content);
             richTextBox.AppendText(Environment.NewLine);
-        }
-
-        private bool IsStartupItem()
-        {
-            RegistryKey registryKey = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", true);
-
-            if (registryKey.GetValue(SystemHardwareInfo.AssemblyProduct) == null)
-                return false;
-            else
-                return true;
         }
 
         public MainForm()
@@ -112,6 +103,28 @@ namespace BOSU
 
         private void RichTextBox_TextChanged(object sender, EventArgs e) {  }
 
+        private void CreateStartupTask(string serviceName)
+        {
+            using (var taskService = new TaskService())
+            {
+                var task = taskService.NewTask();
+                task.Actions.Add(new ExecAction("cmd.exe",
+                    string.Format("/c start " + Application.ExecutablePath.ToString() + " && exit", serviceName)));
+                task.Triggers.Add(new LogonTrigger());
+                task.Principal.RunLevel = TaskRunLevel.Highest;
+                taskService.RootFolder.RegisterTaskDefinition(serviceName + " Startup", task);
+            }
+        }
+
+        private void RemoveStartupTask(string serviceName)
+        {
+            using (var taskService = new TaskService())
+            {
+                var task = taskService.NewTask();
+                taskService.RootFolder.DeleteTask(serviceName + " Startup");
+            }
+        }
+
         private void UncheckOtherToolStripMenuItems(ToolStripMenuItem selectedMenuItem)
         {
             selectedMenuItem.Checked = true;
@@ -130,15 +143,26 @@ namespace BOSU
             //selectedMenuItem.Owner.Show();
         }
 
+        private bool IsStartupItem()
+        {
+            RegistryKey registryKey = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", true);
+
+            if (registryKey.GetValue(SystemHardwareInfo.AssemblyProduct) == null)
+                return false;
+            else
+                return true;
+        }
+
         private void EnableToolStripMenuItem_Click(object sender, EventArgs e)
         {
             UncheckOtherToolStripMenuItems((ToolStripMenuItem)sender);
 
-            RegistryKey registryKey = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", true);
+            //RegistryKey registryKey = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", true);
 
             if (!IsStartupItem())
             {
-                registryKey.SetValue(SystemHardwareInfo.AssemblyProduct, Application.ExecutablePath.ToString());
+                CreateStartupTask(SystemHardwareInfo.AssemblyProduct);
+                //registryKey.SetValue(SystemHardwareInfo.AssemblyProduct, Application.ExecutablePath.ToString());
                 string message = "Be aware current location will be saved to registry" + Environment.NewLine +
                                 "and if you change " + SystemHardwareInfo.AssemblyProduct + " path it wont startup";
                 ShowMessageBox(message, MessageBoxIcon.Warning);
@@ -149,11 +173,13 @@ namespace BOSU
         {
             UncheckOtherToolStripMenuItems((ToolStripMenuItem)sender);
 
-            RegistryKey registryKey = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", true);
+            RemoveStartupTask(SystemHardwareInfo.AssemblyProduct);
+
+            //RegistryKey registryKey = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", true);
 
             if (IsStartupItem())
             {
-                registryKey.DeleteValue(SystemHardwareInfo.AssemblyProduct, false);
+                //registryKey.DeleteValue(SystemHardwareInfo.AssemblyProduct, false);
                 string message = SystemHardwareInfo.AssemblyProduct + " entry removed from registry!";
                 ShowMessageBox(message, MessageBoxIcon.Information);
             }
