@@ -85,6 +85,7 @@ namespace BOSU
 
         private void Form_Load(object sender, EventArgs e)
         {
+            Hide();
             notifyIcon1.ContextMenu = this.contextMenu;
             notifyIcon1.BalloonTipText = "Double click on icon to open";
             notifyIcon1.BalloonTipTitle = "Іщураз на дротє";
@@ -121,7 +122,7 @@ namespace BOSU
             using (var taskService = new TaskService())
             {
                 var task = taskService.NewTask();
-                taskService.RootFolder.DeleteTask(serviceName + " Startup");
+                taskService.RootFolder.DeleteTask(serviceName + " Startup", false);
             }
         }
 
@@ -161,6 +162,7 @@ namespace BOSU
 
             if (!IsStartupItem())
             {
+                RemoveStartupTask(SystemHardwareInfo.AssemblyProduct);
                 CreateStartupTask(SystemHardwareInfo.AssemblyProduct);
                 //registryKey.SetValue(SystemHardwareInfo.AssemblyProduct, Application.ExecutablePath.ToString());
                 string message = "Be aware current location will be saved to registry" + Environment.NewLine +
